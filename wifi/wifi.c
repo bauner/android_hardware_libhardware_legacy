@@ -23,6 +23,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <poll.h>
+#include <sys/syscall.h>
 
 #ifdef USES_TI_MAC80211
 #include <dirent.h>
@@ -201,19 +202,19 @@ char* get_samsung_wifi_type()
 
 int insmod(const char *filename, const char *args)
 {
-    void *module;
-    unsigned int size;
-    int ret;
-
-    module = load_file(filename, &size);
-    if (!module)
+     /* O_NOFOLLOW is removed as wlan.ko is symlink pointing to
+        the vendor specfic file which is in readonly location */
+     int fd = open(filename, O_RDONLY | O_CLOEXEC);
+     if (fd == -1) {
+        ALOGD("insmod: open(\"%s\") failed: %s", filename, strerror(errno));
         return -1;
-
-    ret = init_module(module, size, args);
-
-    free(module);
-
-    return ret;
+     }
+     int rc = syscall(__NR_finit_module, fd, args, 0);
+     if (rc == -1) {
+       ALOGD("finit_module for \"%s\" failed: %s", filename, strerror(errno));
+     }
+     close(fd);
+     return rc;
 }
 
 int rmmod(const char *modname)
