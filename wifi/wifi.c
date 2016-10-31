@@ -202,23 +202,12 @@ char* get_samsung_wifi_type()
 
 int insmod(const char *filename, const char *args)
 {
-#ifndef NO_FINIT_MODULE
      /* O_NOFOLLOW is removed as wlan.ko is symlink pointing to
         the vendor specfic file which is in readonly location */
      int fd = open(filename, O_RDONLY | O_CLOEXEC);
      if (fd == -1) {
         ALOGD("insmod: open(\"%s\") failed: %s", filename, strerror(errno));
-#else
-    void *module;
-    unsigned int size;
-    int ret;
-
-    module = load_file(filename, &size);
-    if (!module)
-#endif
         return -1;
-
-#ifndef NO_FINIT_MODULE
      }
      int rc = syscall(__NR_finit_module, fd, args, 0);
      if (rc == -1) {
@@ -226,13 +215,6 @@ int insmod(const char *filename, const char *args)
      }
      close(fd);
      return rc;
-#else
-    ret = init_module(module, size, args);
-
-    free(module);
-
-    return ret;
-#endif
 }
 
 int rmmod(const char *modname)
